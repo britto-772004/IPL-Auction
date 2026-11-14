@@ -1,0 +1,63 @@
+
+services:
+  mongodb:
+    image: mongo:8
+    container_name: backend-mongodb
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:27017:27017"
+
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?MONGO_INITDB_ROOT_USERNAME is required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?MONGO_INITDB_ROOT_PASSWORD is required}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:?MONGO_INITDB_DATABASE is required}
+
+    volumes:
+      - mongodb_data:/data/db
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "mongosh --quiet --eval 'db.adminCommand(\"ping\")'"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  loki:
+    image: grafana/loki:latest
+    container_name: backend-loki
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:3100:3100"
+
+    command: -config.file=/etc/loki/local-config.yaml
+
+    volumes:
+      - loki_data:/loki
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: backend-grafana
+    restart: unless-stopped
+    depends_on:
+      - loki
+
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?GRAFANA_ADMIN_USER is required}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  mongodb_data:
+  loki_data:
+  grafana_data:
